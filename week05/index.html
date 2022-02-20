@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+   <meta charset="UTF-8">
+   <meta http-equiv="X-UA-Compatible" content="IE=edge">
+   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+   <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+   <link rel="stylesheet" href="./css/style.css">
+   <link rel="preconnect" href="https://fonts.googleapis.com">
+   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/vue-loading-overlay@5.0.3/src/css/index.css">
+   <link href="https://fonts.googleapis.com/css2?family=Inter&display=swap" rel="stylesheet">
+   <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+   <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.9.1/gsap.min.js"></script>
+   <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.9.1/CSSRulePlugin.min.js"></script>
+   <script src="https://unpkg.com/vue@next"></script>
+   <script src="https://unpkg.com/vee-validate@next"></script>
+   <script src="https://unpkg.com/@vee-validate/i18n@4.1.0"></script>
+   <script src="https://unpkg.com/@vee-validate/rules"></script>
+   <script src="https://cdn.jsdelivr.net/npm/vue-loading-overlay@5.0.3/dist/vue-loading.min.js"></script>
+   <script src="https://unpkg.com/vee-validate"></script>
+   <!-- <script src="https://cdnjs.cloudflare.com/ajax/libs/vee-validate/4.5.8/vee-validate.min.js"></script> -->
+   <!-- <script src="https://cdn.jsdelivr.net/npm/@vee-validate/rules@4.5.8/dist/vee-validate-rules.min.js"></script> -->
+   <!-- <script src="https://cdn.jsdelivr.net/npm/@vee-validate/i18n@4.5.8/dist/vee-validate-i18n.min.js"></script> -->
+   <script type="module" src="./js/app.js"></script>
+   <title>week5</title>
+</head>
+
+<body class="bg--diagonal-line font-poppings">
+   <div id="app" class="container-center">
+
+      <div class="flex flex-col gap-4" note="flex-wrap xl:flex-nowrap">
+         <div id="product-list" class="-my-2 overflow-x-auto sm:-mx-6 lg:-mx-8">
+            <div class="py-2 align-middle inline-block min-w-full sm:px-6 lg:px-8">
+
+               <div class="shadow overflow-hidden border-gray-200 sm:rounded-lg bg-gray-50">
+                  <div class="min-w-full divide-y border-gray-200 border-b-2">
+                     <!-- List Header -->
+                     <div class="bg-gray-50 grid grid-cols-[3fr_4fr_minmax(340px,_2fr)]">
+                        <div class="list-header-col">Product Name</div>
+                        <div class="list-header-col">Price</div>
+                        <div class="list-header-col">Check Out</div>
+                     </div>
+                     <!-- List Body -->
+                     <div class="bg-white grid grid-cols-[3fr_4fr_minmax(340px,_2fr)]" 
+                        v-for="(item,index) in products" :key="item.id">
+                        <!-- product name -->
+                        <div class="px-6 py-4 whitespace-nowrap">
+                           <div class="fx-center-y">
+                              <div class="shrink-0 rounded-full border border-gray-400">
+                                 <img class="h-16 aspect-square object-cover rounded-full" 
+                                    :src="item.imageUrl" @load="loadPhotoSuccess" @error="loadPhotoError">
+                              </div>
+
+                              <div class="ml-4">
+                                 <div class="text-sm font-medium text-gray-900">{{item.title}}</div>
+                                 <div class="text-sm text-gray-500">{{item.category}}</div>
+                              </div>
+                           </div>
+                        </div>
+                        <!-- Price -->
+                        <div class="px-6 py-4 whitespace-nowrap fx-center-y font-inter">
+                           <div class="flex items-end gap-3">
+                              <span class="text-3xl font-bold text-gray-900">
+                                 ${{ new Intl.NumberFormat().format(item.price) }}</span>
+                              <span class="bullet-text bullet-leaf text-emerald-500 mb-1" 
+                                 v-show="item.price < item.origin_price">
+                                 ↓ {{ discountPercent( item.price , item.origin_price ) }}%
+                                 （原價 ${{ new Intl.NumberFormat().format(item.origin_price) }}）</span>
+                           </div>
+                        </div>
+                        <!-- check out -->
+                        <div class="px-6 py-4 whitespace-nowrap fx-center-y">
+                           <a href="#" class="text-line-style-a pr-6 border-r-2" 
+                              @click.prevent="$refs.modalProduct.callModal( item , cart.carts );">
+                              View Product</a>
+                           <button type="button" class="text-line-style-a ml-2 text-red-400 hover:text-white
+                              rounded-full px-3 py-1 hover:bg-red-300 disabled:bg-gray-300 disabled:text-gray-800 addCart_btn" 
+                              @click.prevent="apiAddToCart(item);" ref="addCart_btn" :data-id="item.id">
+                              Add to Bag
+                           </button>
+                        </div>
+                     </div>
+                     
+                  </div>
+
+                  <div class="w-full bg-gray-50 text-right" v-show="hasAnyCart">
+                     <button class="btn-rounded-lg bg-gray-700 ring-gray-200 my-3 mx-6"
+                        @click.prevent="apiEmptyCarts">清空購物車</button>
+                  </div>
+
+               </div>
+
+            </div>
+
+         </div>
+
+         <div class="w-full bg-gray-50 shadow overflow-hidden border-gray-200 sm:rounded-lg" v-show="hasAnyCart">
+            <div class="grid grid-cols-1 lg:grid-cols-[3fr_2fr] py-8">
+
+               <div class="min-w-full px-6">
+                  <h5 class="text-lg font-semibold mb-2">Order Summary</h5>
+                  
+                  <div class="rounded-lg overflow-hidden border-2 border-gray-200 ">
+                     <div class="bg-gray-50 order-summary-grid">
+                        <div class="list-header-col">Product</div>
+                        <div class="list-header-col">Quantity</div>
+                        <div class="list-header-col place-self-end">Subtotal</div>
+                     </div>
+      
+                     <div class="bg-white text-sm border-b order-summary-grid" v-for="item in cart.carts" :key="item.id">
+                        <div class="px-2 py-2 whitespace-nowrap fx-center-y gap-2">
+                           <a href="#" @click.prevent="apiDeleteCartItem(item.id);">
+                              <img src="./images/remove_circle_black_24dp.svg" 
+                                 class="w-4 aspect-square object-cover filter-red">
+                           </a>
+                           <span>{{item.product.title}}</span>
+                        </div>
+                        <div class="px-6 py-2 whitespace-nowrap">
+                           <div class="fx-center-y gap-4">
+                              <label for="numInput" class="relative text-base">
+                                 <select class="input-style-structure input-style--color m-0 py-1 px-4" 
+                                    aria-label="Default select example" v-model="item.qty" @change="apiUpdateCartItem(item)">
+                                    <option v-for="item in 10" :value="item" :key="item">{{item}}</option>
+                                 </select>
+                              </label>
+                              <span class="text-gray-500 text-base">{{item.product.unit}}</span>
+                           </div>
+                        </div>
+                        <div class="px-6 py-2 whitespace-nowrap fx-center-y ml-auto font-inter">
+                           ${{ new Intl.NumberFormat().format(item.final_total) }}
+                        </div>
+                     </div>
+      
+                     <div class="bg-white grid grid-cols-[1fr_300px_1fr]">
+                        <div class="list-header-col "></div>
+                        <span class="list-header-col "></span>
+                        <div class="list-header-col ml-auto">
+                           <span class="mr-4">Total</span>
+                           <span class="text-base text-black">${{ new Intl.NumberFormat().format(cart.total) }}</span>
+                        </div>
+                     </div>
+
+                  </div>
+                  <div class="mt-4 flex justify-end">
+                     <button type="button" @click.prevent="clickToFillOut"
+                        class="btn-rounded-md bg-purple-400 ring-purple-200 py-1 px-3 text-sm">
+                        一鍵輸入</button>
+                  </div>
+               </div>
+
+               <div class="min-w-full px-6">
+                  <h5 class="text-lg font-semibold mb-2">Contact Information</h5>
+
+                  <v-form v-slot="{ errors }" @submit="apiCreateLeadForm()" autocomplete="off" ref="leadForm"
+                     class="mx-auto flex flex-col gap-4">
+         
+                     <label for="emailInput" class="relative text-sm">
+                        <span class="text-gray-500 inline-block mb-1">Email address</span>
+                        <v-field id="emailInput" placeholder="abc@email.com" name="email" 
+                           class="input-person-info input-style--color input-style--error" rules="email|required"
+                           v-model="leadForm.user.email">
+                        </v-field>
+                        <error-message class="error-text mt-1" name="email"></error-message>
+                        <!-- 錯誤訊息會對應 v-filed 的 name 屬性，所以 name 一定要放進去 -->
+                        <!-- error-message 會把屬性 name="" 裡面的內容渲染到畫面上。 -->
+                        <!-- rules 可以自己把多數的規則填進去，垂直線中間不要空格。 -->
+                        <!-- v-filed 不需要 type 屬性，使用 as="select" 之類的來轉換其他 input -->
+                     </label>
+
+                     <div class="my-4 border-b-2 border-gray-200"></div>
+      
+                     <label for="nameInput" class="relative text-sm">
+                        <span class="text-gray-500 inline-block mb-1">收件人姓名</span>
+                        <v-field id="nameInput" placeholder="Name" name="姓名" rules="required"
+                           class="input-person-info input-style--color input-style--error"
+                           v-model="leadForm.user.name">
+                        </v-field>
+                        <error-message class="error-text mt-1" name="姓名"></error-message>
+                     </label>
+      
+                     <label for="telInput" class="relative text-sm">
+                        <span class="text-gray-500 inline-block mb-1">收件人電話</span>
+                        <v-field id="telInput" placeholder="Phone number" name="手機號碼" type="tel"
+                           :rules="{ required:true , min:8 , max:10 , numeric:true  }"
+                           class="input-person-info input-style--color input-style--error"
+                           v-model="leadForm.user.tel">
+                        </v-field>
+                        <error-message class="error-text mt-1" name="手機號碼"></error-message>
+                     </label>
+      
+                     <label for="addressInput" class="relative text-sm">
+                        <span class="text-gray-500 inline-block mb-1">收件地址</span>
+                        <v-field id="addressInput" placeholder="Shipping address" name="收件地址" rules="required"
+                           class="input-person-info input-style--color input-style--error"
+                           v-model="leadForm.user.address">
+                        </v-field>
+                        <error-message class="error-text mt-1" name="收件地址"></error-message>
+                     </label>
+      
+                     <label for="messageInput" class="relative text-sm">
+                        <span class="text-gray-500 inline-block mb-1">留言</span>
+                        <v-field id="messageInput" name="message" as="textarea"
+                           class="input-style-structure input-style--color input-style--error"
+                           v-model="leadForm.message">
+                        </v-field>
+                     </label>
+
+                     <div class="my-4 border-b-2 border-gray-200"></div>
+
+                     <button type="submit" class="btn-rounded-lg bg-rose-400 ring-rose-200 w-full">Checkout</button>
+                  </v-form>
+                  
+               </div>
+
+               <loading :active="isLoading"></loading>
+               <!-- <button type="button" @click="playLoading">loading</button> -->
+            </div>
+         </div>
+         
+      </div>
+      <modal_message ref="modalMessage"></modal_message>
+      <modal_product ref="modalProduct" @emit_add_cart="apiAddToCart($event)"></modal_product>
+   </div>
+
+   <script type="text/x-template" id="template-modal-product">
+      <div class="modal-layer" ref="modalProduct">
+         <div class="container-centering">
+            <div class="modal-content lg:max-w-screen-lg" ref="modalProductContent">
+               <div class="grid grid-cols-1 gap-y-8 gap-x-6 items-start sm:grid-cols-12 lg:gap-x-8 relative">
+                  <close_btn class="absolute top-0 right-0" @click.prevent="closeModal"></close_btn>
+                  <img :src="product.imageUrl" @load="loadPhotoSuccess" @error="loadPhotoError" 
+                  class="object-cover aspect-3/4 rounded-lg sm:col-span-4 lg:col-span-5">
+                  
+                  <div class="sm:col-span-8 lg:col-span-7 flex flex-col h-full">
+                     <div class="inline-flex gap-3 items-end">
+                        <h2 class="text-2xl font-semibold text-gray-900">{{ product.title }}</h2>
+                        <span class="bullet-text bullet-leaf text-sm font-normal">{{ product.category }}</span>
+                     </div>
+                     <p class="text-2xl text-gray-900">${{ new Intl.NumberFormat().format( product.price ) }}</p>
+                     <div class="divide-gray-200 w-3/4"></div>
+                     <p class="mt-4 text-gray-500">
+                        <img src="./images/info_black_24dp.svg" class="icon-cover w-5 filter-green-500">
+                        {{ product.content == '' ? 'No content' : product.content }}</p>
+                     <p class="my-4 text-gray-500">
+                        {{ product.description == '' ? 'No Description' : product.description }}
+                     </p>
+                     <button type="button" class="btn-rounded-md w-full mt-auto bg-indigo-600 
+                        hover:bg-indigo-700 border-transparent
+                        focus:outline-none focus:ring-offset-2 focus:ring-indigo-500"
+                        @click.prevent="addToCart">
+                        {{ hasAdded ? 'already Added！' : 'Add to Bag' }}
+                     </button>
+                  </div>
+               </div>
+            </div>
+         </div>
+      </div>
+   </script>
+
+</body>
+
+</html>
